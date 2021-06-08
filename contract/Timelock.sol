@@ -27,6 +27,11 @@ contract Timelock {
     mapping (uint256 => job) public JOB_DATA;
     uint256 public LAST_ID;
     
+    bytes32 constant private CONST_CHANGE_PERIOD = keccak256("changePeriod");
+    bytes32 constant private CONST_ADMIT_MINTER = keccak256("admitMinter");
+    bytes32 constant private CONST_EXPEL_MINTER = keccak256("expelMinter");
+    bytes32 constant private CONST_SUCCEED_GOVERNANCE = keccak256("succeedGovernance");
+
     event JobQueued (uint256 id);
     event CommunitySucceeded (address originCommunity, address newCommunity);
     
@@ -75,21 +80,21 @@ contract Timelock {
         
         JOB_DATA[id].state = 1;
         
-        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == keccak256("changePeriod")){
+        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == CONST_CHANGE_PERIOD){
             _changePeriod(uint256(JOB_DATA[id].arg));
             return;
         }
         
         IGovernance tokenObj = IGovernance(TOKEN);
-        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == keccak256("admitMinter")){
+        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == CONST_ADMIT_MINTER){
             tokenObj.admitMinter(JOB_DATA[id].arg);
             return;
         }
-        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == keccak256("expelMinter")){
+        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == CONST_EXPEL_MINTER){
             tokenObj.expelMinter(JOB_DATA[id].arg);
             return;
         }
-        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == keccak256("succeedGovernance")){
+        if(keccak256(abi.encodePacked(JOB_DATA[id].action)) == CONST_SUCCEED_GOVERNANCE){
             tokenObj.succeedGovernance(JOB_DATA[id].arg);
             return;
         }
