@@ -99,35 +99,35 @@ contract Governance is Context{
         _;
     }
     
-    function governance () public view returns (address) {
+    function governance () external view returns (address) {
         return _governance;
     }
     
-    function isMinter (address target) public view returns (bool) {
+    function isMinter (address target) external view returns (bool) {
         return _isMinter[target];
     }
     
-    function supplyByMinter (address minter) public view returns (uint256) {
+    function supplyByMinter (address minter) external view returns (uint256) {
         return _supplyByMinter[minter];
     }
     
-    function burnByAddress (address by) public view returns (uint256) {
+    function burnByAddress (address by) external view returns (uint256) {
         return _burnByAddress[by];
     }
     
-    function admitMinter (address target) public GovernanceOnly {
+    function admitMinter (address target) external GovernanceOnly {
         require (!_isMinter[target], "Target is minter already");
         _isMinter[target] = true;
         emit MinterAdmitted(target);
     }
     
-    function expelMinter (address target) public GovernanceOnly {
+    function expelMinter (address target) external GovernanceOnly {
         require (_isMinter[target], "Target is not minter");
         _isMinter[target] = false;
         emit MinterExpelled(target);
     }
     
-    function succeedGovernance (address newGovernance) public GovernanceOnly {
+    function succeedGovernance (address newGovernance) external GovernanceOnly {
         _governance = newGovernance;
         emit GovernanceChanged(msg.sender, newGovernance);
     }
@@ -162,62 +162,62 @@ contract ERC20 is Governance, IERC20 {
         _initialSupply = initialSupply;
     }
 
-    function name() public view returns (string memory) {
+    function name() external view returns (string memory) {
         return _name;
     }
 
-    function symbol() public view returns (string memory) {
+    function symbol() external view returns (string memory) {
         return _symbol;
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() external view returns (uint8) {
         return _decimals;
     }
 
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() external view returns (uint256) {
         return _totalSupply;
     }
 
-    function balanceOf(address account) public view returns (uint256) {
+    function balanceOf(address account) external view returns (uint256) {
         return _balances[account];
     }
 
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount) external returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
-    function allowance(address owner, address spender) public view returns (uint256) {
+    function allowance(address owner, address spender) external view returns (uint256) {
         return _allowances[owner][spender];
     }
 
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) external returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
     
-    function mint (address to, uint256 quantity) public MinterOnly {
+    function mint (address to, uint256 quantity) external MinterOnly {
         _mint(to, quantity);
         _supplyByMinter[msg.sender] = _supplyByMinter[msg.sender].add(quantity);
     }
     
-    function burn (uint256 quantity) public {
+    function burn (uint256 quantity) external {
         _burn(msg.sender, quantity);
         _burnByAddress[msg.sender] = _burnByAddress[msg.sender].add(quantity);
     }
