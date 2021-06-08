@@ -28,6 +28,7 @@ contract Timelock {
     uint256 public LAST_ID;
     
     event JobQueued (uint256 id);
+    event CommunitySucceeded (address originCommunity, address newCommunity);
     
     constructor (address token, uint256 lockPeriod) public {
         TOKEN = token;
@@ -95,6 +96,7 @@ contract Timelock {
     }
     
     function succeedCommunity (address newCommunity) external CommunityOnly {
+        emit CommunitySucceeded(COMMUNITY, newCommunity);
         COMMUNITY = newCommunity;
     }
     
