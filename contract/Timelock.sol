@@ -47,7 +47,15 @@ contract Timelock {
         _;
     }
     
-    function queueJob (string memory action, address arg) public CommunityOnly returns (uint256) {
+    function whenExecutable (uint256 id) public view JobAlive(id) returns (uint256) {
+        return JOB_DATA[id].queued + LOCK_PERIOD;
+    }
+    
+    function isExecutable (uint256 id) public view JobAlive(id) returns (bool) {
+        return block.number >= whenExecutable(id);
+    }
+    
+    function queueJob (string calldata action, address arg) external CommunityOnly returns (uint256) {
         uint256 nextID = LAST_ID + 1;
         
         JOB_DATA[nextID] = job(nextID, 0, action, arg, block.number);
@@ -57,19 +65,11 @@ contract Timelock {
         return nextID;
     }
     
-    function whenExecutable (uint256 id) public view JobAlive(id) returns (uint256) {
-        return JOB_DATA[id].queued + LOCK_PERIOD;
-    }
-    
-    function isExecutable (uint256 id) public view JobAlive(id) returns (bool) {
-        return block.number >= whenExecutable(id);
-    }
-    
-    function cancelJob (uint256 id) public CommunityOnly JobAlive(id) {
+    function cancelJob (uint256 id) external CommunityOnly JobAlive(id) {
         JOB_DATA[id].state = 2;
     }
     
-    function executeJob (uint256 id) public CommunityOnly {
+    function executeJob (uint256 id) external CommunityOnly {
         require(isExecutable(id) == true, "Job isnt ready");
         
         JOB_DATA[id].state = 1;
@@ -94,7 +94,7 @@ contract Timelock {
         }
     }
     
-    function succeedCommunity (address newCommunity) public CommunityOnly {
+    function succeedCommunity (address newCommunity) external CommunityOnly {
         COMMUNITY = newCommunity;
     }
     
