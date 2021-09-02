@@ -2,8 +2,7 @@
 
 > MCS
 
-+ Our token contract based on ERC20
-+ Mintable by minter, who governance admitted
++ Our mintable/pausable token contract based on ERC20
 
 > Timelock
 
@@ -12,3 +11,7 @@
 > Swap
 
 + REMI/YEED to MCS Converter
+
+> CustomAccessControl
+
++ AccessControl with a modifier

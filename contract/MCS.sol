@@ -1,143 +1,70 @@
-/**
- *Submitted for verification at Etherscan.io on 2020-10-08
-*/
+pragma solidity 0.6.12;
 
-pragma solidity ^0.5.0;
+//SPDX-License-Identifier: UNLICENSED
 
-contract Context {
-    constructor () internal { }
+import "./CustomAccessControl.sol";
 
-    function _msgSender() internal view returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view returns (bytes memory) {
-        this;
-        return msg.data;
-    }
-}
-
-interface IERC20 {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function allowance(address owner, address spender) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
-library SafeMath {
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-
-        return c;
-    }
-
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-}
-
-contract Governance is Context{
-    address internal _governance;
-    mapping (address => bool) private _isMinter;
-    mapping (address => uint256) internal _supplyByMinter;
-    mapping (address => uint256) internal _burnByAddress;
+abstract contract MCSRole is CustomAccessControl {
+    bytes32 public constant ROLE_MINTER = keccak256("ROLE_MINTER");
+    bytes32 public constant ROLE_SUPERVISOR = keccak256("ROLE_SUPERVISOR");
+    bytes32 public constant ROLE_GOVERNANCE = keccak256("ROLE_GOVERNANCE");
     
-    event GovernanceChanged(address oldGovernance, address newGovernance);
-    event MinterAdmitted(address target);
-    event MinterExpelled(address target);
+    constructor () public {
+        _setRoleAdmin(ROLE_SUPERVISOR, ROLE_SUPERVISOR);
+        _setRoleAdmin(ROLE_GOVERNANCE, ROLE_GOVERNANCE);
+        _setRoleAdmin(ROLE_MINTER, ROLE_GOVERNANCE);
+    }
+}
+
+contract Emergency is MCSRole {
+    mapping (address => bool) private _lockState;
     
-    modifier GovernanceOnly () {
-        require (_msgSender() == _governance, "Only Governance can do");
+    event LockStateChanged (address target, bool lock);
+
+    modifier NotFrozen () {
+        require(!_lockState[address(this)], "Token is frozen");
         _;
     }
-    
-    modifier MinterOnly () {
-        require (_isMinter[_msgSender()], "Only Minter can do");
+
+    modifier NotLocked () {
+        require(!_lockState[_msgSender()], "Address is locked");
         _;
     }
-    
-    function governance () external view returns (address) {
-        return _governance;
+
+    function isFrozen () external view returns (bool) {
+        return _lockState[address(this)];
+    }
+
+    function isLocked (address target) external view returns (bool) {
+        return _lockState[target];
     }
     
-    function isMinter (address target) external view returns (bool) {
-        return _isMinter[target];
+    function changeLockState (address target, bool state) public OnlyFor(ROLE_SUPERVISOR) {
+        _lockState[target] = state;
+        emit LockStateChanged (target, state);
     }
-    
-    function supplyByMinter (address minter) external view returns (uint256) {
-        return _supplyByMinter[minter];
+
+    function freezeToken () external {
+        changeLockState(address(this), true);
     }
-    
-    function burnByAddress (address by) external view returns (uint256) {
-        return _burnByAddress[by];
+
+    function meltToken () external {
+        changeLockState(address(this), false);
     }
-    
-    function admitMinter (address target) external GovernanceOnly {
-        require (!_isMinter[target], "Target is minter already");
-        _isMinter[target] = true;
-        emit MinterAdmitted(target);
+
+    function lockAddress (address target) external {
+        changeLockState(target, true);
     }
-    
-    function expelMinter (address target) external GovernanceOnly {
-        require (_isMinter[target], "Target is not minter");
-        _isMinter[target] = false;
-        emit MinterExpelled(target);
-    }
-    
-    function succeedGovernance (address newGovernance) external GovernanceOnly {
-        _governance = newGovernance;
-        emit GovernanceChanged(msg.sender, newGovernance);
+
+    function unlockAddress (address target) external {
+        changeLockState(target, false);
     }
 }
 
-contract ERC20 is Governance, IERC20 {
+contract ERC20 is Emergency {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
-
     mapping (address => mapping (address => uint256)) private _allowances;
 
     string private _name;
@@ -146,7 +73,13 @@ contract ERC20 is Governance, IERC20 {
 
     uint256 private _totalSupply;
     uint256 private _initialSupply;
-
+    
+    mapping (address => uint256) internal _supplyByMinter;
+    mapping (address => uint256) internal _burnByAddress;
+    
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    
     constructor (
         string memory name,
         string memory symbol,
@@ -156,9 +89,8 @@ contract ERC20 is Governance, IERC20 {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;
-        _governance = msg.sender;
         
-        _mint(msg.sender, initialSupply);
+        _mint(_msgSender(), initialSupply);
         _initialSupply = initialSupply;
     }
 
@@ -178,17 +110,29 @@ contract ERC20 is Governance, IERC20 {
         return _totalSupply;
     }
 
+    function initialSupply() external view returns (uint256) {
+        return _initialSupply;
+    }
+    
+    function supplyByMinter (address minter) external view returns (uint256) {
+        return _supplyByMinter[minter];
+    }
+    
+    function burnByAddress (address by) external view returns (uint256) {
+        return _burnByAddress[by];
+    }
+
     function balanceOf(address account) external view returns (uint256) {
         return _balances[account];
     }
 
-    function transfer(address recipient, uint256 amount) external returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
-        return true;
-    }
-
     function allowance(address owner, address spender) external view returns (uint256) {
         return _allowances[owner][spender];
+    }
+
+    function transfer(address recipient, uint256 amount) external NotFrozen NotLocked returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
     }
 
     function approve(address spender, uint256 amount) external returns (bool) {
@@ -196,7 +140,7 @@ contract ERC20 is Governance, IERC20 {
         return true;
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) external NotFrozen NotLocked returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
@@ -212,14 +156,14 @@ contract ERC20 is Governance, IERC20 {
         return true;
     }
     
-    function mint (address to, uint256 quantity) external MinterOnly {
+    function mint (address to, uint256 quantity) public OnlyFor(ROLE_MINTER) NotFrozen NotLocked {
         _mint(to, quantity);
-        _supplyByMinter[msg.sender] = _supplyByMinter[msg.sender].add(quantity);
+        _supplyByMinter[_msgSender()] = _supplyByMinter[_msgSender()].add(quantity);
     }
     
-    function burn (uint256 quantity) external {
-        _burn(msg.sender, quantity);
-        _burnByAddress[msg.sender] = _burnByAddress[msg.sender].add(quantity);
+    function burn (uint256 quantity) public NotFrozen NotLocked {
+        _burn(_msgSender(), quantity);
+        _burnByAddress[_msgSender()] = _burnByAddress[_msgSender()].add(quantity);
     }
 
     function _transfer(address sender, address recipient, uint256 amount) internal {
@@ -261,6 +205,21 @@ contract ERC20 is Governance, IERC20 {
     }
 }
 
-contract MCS is ERC20 ("MCS", "MCS", 18, 13000000000000000000000000000) {
+contract MCS is ERC20 {
+    constructor (uint256 initialSupply) public ERC20("MCS","MCS",18,initialSupply) {
+        _setupRole(ROLE_SUPERVISOR, msg.sender);
+        _setupRole(ROLE_GOVERNANCE, msg.sender);
+    }
+    
+    function token () external view returns (MCS) {
+        return MCS(address(this));
+    }
 
+    function issue (address to, uint256 quantity) external {
+        mint(to, quantity);
+    }
+
+    function destroy (uint256 quantity) external {
+        burn(quantity);
+    }
 }
