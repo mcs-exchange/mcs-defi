@@ -10,7 +10,7 @@ abstract contract MCSRole is CustomAccessControl {
     bytes32 public constant ROLE_GOVERNANCE = keccak256("ROLE_GOVERNANCE");
     
     constructor () public {
-        _setRoleAdmin(ROLE_SUPERVISOR, ROLE_SUPERVISOR);
+        _setRoleAdmin(ROLE_SUPERVISOR, ROLE_GOVERNANCE);
         _setRoleAdmin(ROLE_GOVERNANCE, ROLE_GOVERNANCE);
         _setRoleAdmin(ROLE_MINTER, ROLE_GOVERNANCE);
     }
