@@ -67,7 +67,7 @@ contract Timelock is TimelockRole {
     }
     
     function executeJob (uint256 id) external OnlyFor(ROLE_COMMUNITY) {
-        require(isExecutable(id) == true, "Job isnt ready");
+        require(isExecutable(id) == true, "Job isn't ready");
         
         JOB_DATA[id].state = 1;
         

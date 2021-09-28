@@ -69,10 +69,10 @@ contract ERC20 is Emergency {
 
     string private _name;
     string private _symbol;
-    uint8 private _decimals;
+    uint8 private immutable _decimals;
 
     uint256 private _totalSupply;
-    uint256 private _initialSupply;
+    uint256 private immutable _initialSupply;
     
     mapping (address => uint256) internal _supplyByMinter;
     mapping (address => uint256) internal _burnByAddress;
