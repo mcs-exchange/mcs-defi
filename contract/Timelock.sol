@@ -35,6 +35,8 @@ contract Timelock is TimelockRole {
     event JobQueued (uint256 id);
     
     constructor (address token, uint256 lockPeriod) public {
+        require(token != address(0), "Token should not be zero-address");
+        
         TOKEN = token;
         LOCK_PERIOD = lockPeriod;
         LAST_ID = 0;
